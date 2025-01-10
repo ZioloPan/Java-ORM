@@ -1,0 +1,4 @@
+url: "jdbc:postgresql://localhost:5555/postgres"
+user: "bookit"
+password: "difficult_password"
+poolSize: 5
