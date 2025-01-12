@@ -13,9 +13,8 @@ public class MainTest {
             EntityManager entityManager = new EntityManager(connectionPool);
 
             LoggerObserver loggerObserver = new LoggerObserver();
-            entityManager.addObserver(loggerObserver);
+            connectionPool.addObserver(loggerObserver);
 
-            // Testowanie operacji find dla Department
             System.out.println("Pobieranie działu o ID 1...");
             Department department = entityManager.find(Department.class, 1);
 
@@ -25,11 +24,8 @@ public class MainTest {
                 for (Employee employee : department.getEmployees()) {
                     System.out.println(" - " + employee.getName());
                 }
-            } else {
-                System.out.println("Nie znaleziono działu o ID 1.");
             }
 
-            // Zamknięcie puli połączeń
             connectionPool.close();
 
         } catch (Exception e) {

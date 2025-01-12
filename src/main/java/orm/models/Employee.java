@@ -1,9 +1,6 @@
 package orm.models;
 
-import orm.annotations.Column;
-import orm.annotations.Id;
-import orm.annotations.ManyToOne;
-import orm.annotations.Table;
+import orm.annotations.*;
 
 @Table(name = "employees")
 public class Employee {
@@ -17,6 +14,9 @@ public class Employee {
 
     @ManyToOne(column = "department_id")
     private Department department;
+
+    @OneToOne(column = "car_id")
+    private Car car;
 
     public int getId() {
         return id;
@@ -41,4 +41,13 @@ public class Employee {
     public void setDepartment(Department department) {
         this.department = department;
     }
+
+    public Car getCar() {
+        return car;
+    }
+
+    public void setCar(Car car) {
+        this.car = car;
+    }
+
 }
