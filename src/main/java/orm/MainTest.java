@@ -15,21 +15,21 @@ public class MainTest {
             connectionPool.addObserver(loggerObserver);
 
             Department d1 = new Department();
-            d1.setId(1);
+            d1.setId(10);
             d1.setName("Pakowanie");
             Department d2 = new Department();
-            d2.setId(2);
+            d2.setId(11);
             d2.setName("Malowanie");
 
             Employee e1 = new Employee();
             e1.setName("Gabi");
-            e1.setId(4);
+            e1.setId(10);
             Employee e2 = new Employee();
             e2.setName("Bartek");
-            e2.setId(5);
+            e2.setId(11);
             Employee e3 = new Employee();
             e3.setName("Ala");
-            e3.setId(6);
+            e3.setId(12);
 
             entityManager.save(d1);
             entityManager.save(d2);
