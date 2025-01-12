@@ -1,14 +1,15 @@
 package orm;
 
-import orm.annotations.Column;
-import orm.annotations.Id;
-import orm.annotations.Table;
+import orm.annotations.*;
 
 import java.lang.reflect.Field;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Klasa EntityManager zarządzająca operacjami CRUD na encjach.
@@ -29,10 +30,9 @@ public class EntityManager {
     public <T> void save(T entity) {
         Class<?> clazz = entity.getClass();
 
-        // Pobieranie informacji o tabeli
         Table table = clazz.getAnnotation(Table.class);
         if (table == null) {
-            throw new RuntimeException("Klasa " + clazz.getName() + " nie jest oznaczona jako @Table");
+            throw new RuntimeException("Class " + clazz.getName() + " is not mapped in DB");
         }
 
         String tableName = table.name();
@@ -42,28 +42,71 @@ public class EntityManager {
         try {
             for (Field field : clazz.getDeclaredFields()) {
                 field.setAccessible(true);
+
+                if (field.isAnnotationPresent(Id.class)) {
+                    continue;
+                }
+
                 Column column = field.getAnnotation(Column.class);
                 if (column != null) {
                     columns.append(column.name()).append(",");
                     values.append("'").append(field.get(entity)).append("',");
                 }
+
+                if (field.isAnnotationPresent(OneToOne.class)) {
+                    OneToOne oneToOne = field.getAnnotation(OneToOne.class);
+                    Object relatedEntity = field.get(entity);
+
+                    if (relatedEntity != null) {
+                        Field relatedIdField = Arrays.stream(relatedEntity.getClass().getDeclaredFields())
+                                .filter(f -> f.isAnnotationPresent(Id.class))
+                                .findFirst()
+                                .orElseThrow(() -> new RuntimeException("Related entity " + relatedEntity.getClass().getName() + " must have @Id"));
+
+                        relatedIdField.setAccessible(true);
+                        Object relatedIdValue = relatedIdField.get(relatedEntity);
+
+                        if (relatedIdValue == null) {
+                            save(relatedEntity);
+                            relatedIdValue = relatedIdField.get(relatedEntity);
+                        }
+
+                        columns.append(oneToOne.column()).append(",");
+                        values.append("'").append(relatedIdValue).append("',");
+                    }
+                }
             }
 
-            String query = String.format("INSERT INTO %s (%s) VALUES (%s)",
-                    tableName,
-                    columns.substring(0, columns.length() - 1), // Usunięcie ostatniego przecinka
-                    values.substring(0, values.length() - 1));  // Usunięcie ostatniego przecinka
+            String columnsString = columns.substring(0, columns.length() - 1);
+            String valuesString = values.substring(0, values.length() - 1);
+
+            String query = String.format("INSERT INTO %s (%s) VALUES (%s)", tableName, columnsString, valuesString);
 
             try (Connection connection = connectionPool.getConnection();
-                 PreparedStatement statement = connection.prepareStatement(query)) {
+                 PreparedStatement statement = connection.prepareStatement(query, PreparedStatement.RETURN_GENERATED_KEYS)) {
                 statement.executeUpdate();
+
+                try (ResultSet generatedKeys = statement.getGeneratedKeys()) {
+                    if (generatedKeys.next()) {
+                        Field idField = Arrays.stream(clazz.getDeclaredFields())
+                                .filter(f -> f.isAnnotationPresent(Id.class))
+                                .findFirst()
+                                .orElseThrow(() -> new RuntimeException("Entity " + clazz.getName() + " must have @Id"));
+
+                        idField.setAccessible(true);
+                        idField.set(entity, generatedKeys.getObject(1));
+                    }
+                }
             }
 
         } catch (Exception e) {
             e.printStackTrace();
-            throw new RuntimeException("Błąd podczas zapisywania encji: " + e.getMessage());
+            throw new RuntimeException("Entity save Error: " + e.getMessage());
         }
     }
+
+
+
 
     /**
      * Wyszukuje encję w bazie danych po identyfikatorze.
@@ -81,11 +124,16 @@ public class EntityManager {
 
         String tableName = table.name();
         String idColumn = null;
+        Object idValue = id;
 
         for (Field field : clazz.getDeclaredFields()) {
             if (field.isAnnotationPresent(Id.class)) {
                 Column column = field.getAnnotation(Column.class);
-                idColumn = column.name();
+                if (column != null) {
+                    idColumn = column.name();
+                } else {
+                    idColumn = field.getName();
+                }
                 break;
             }
         }
@@ -98,17 +146,111 @@ public class EntityManager {
 
         try (Connection connection = connectionPool.getConnection();
              PreparedStatement statement = connection.prepareStatement(query)) {
-            statement.setObject(1, id);
 
+            statement.setObject(1, idValue);
             ResultSet resultSet = statement.executeQuery();
+
             if (resultSet.next()) {
                 T entity = clazz.getDeclaredConstructor().newInstance();
 
                 for (Field field : clazz.getDeclaredFields()) {
-                    Column column = field.getAnnotation(Column.class);
-                    if (column != null) {
-                        field.setAccessible(true);
+                    field.setAccessible(true);
+
+                    if (field.isAnnotationPresent(Column.class)) {
+                        Column column = field.getAnnotation(Column.class);
                         field.set(entity, resultSet.getObject(column.name()));
+                    }
+
+                    if (field.isAnnotationPresent(ManyToOne.class)) {
+                        ManyToOne manyToOne = field.getAnnotation(ManyToOne.class);
+                        String foreignKeyColumn = manyToOne.column() + "_id";
+
+                        Object foreignKeyValue = resultSet.getObject(foreignKeyColumn);
+                        if (foreignKeyValue != null) {
+                            Class<?> relatedClass = field.getType();
+                            Object relatedEntity = find(relatedClass, foreignKeyValue);
+                            field.set(entity, relatedEntity);
+                        }
+                    }
+
+                    if (field.isAnnotationPresent(OneToOne.class)) {
+                        OneToOne oneToOne = field.getAnnotation(OneToOne.class);
+                        String foreignKeyColumn = oneToOne.column();
+
+
+                        Object foreignKeyValue = resultSet.getObject(foreignKeyColumn);
+                        if (foreignKeyValue != null) {
+                            Class<?> relatedClass = field.getType();
+                            Object relatedEntity = find(relatedClass, foreignKeyValue);
+                            field.set(entity, relatedEntity);
+                        }
+                    }
+
+                    if (field.isAnnotationPresent(OneToMany.class)) {
+                        OneToMany oneToMany = field.getAnnotation(OneToMany.class);
+                        String mappedBy = oneToMany.mappedBy();
+
+                        Class<?> elementType = (Class<?>) ((java.lang.reflect.ParameterizedType) field.getGenericType())
+                                .getActualTypeArguments()[0];
+
+                        String relatedTableName = elementType.getAnnotation(Table.class).name();
+                        String relatedQuery = String.format("SELECT * FROM %s WHERE %s = ?", relatedTableName, mappedBy + "_id");
+
+                        try (PreparedStatement relatedStmt = connection.prepareStatement(relatedQuery)) {
+                            relatedStmt.setObject(1, idValue);
+                            ResultSet relatedResultSet = relatedStmt.executeQuery();
+
+                            List<Object> relatedEntities = new ArrayList<>();
+                            while (relatedResultSet.next()) {
+                                Object relatedEntity = elementType.getDeclaredConstructor().newInstance();
+                                for (Field relatedField : elementType.getDeclaredFields()) {
+                                    Column column = relatedField.getAnnotation(Column.class);
+                                    if (column != null) {
+                                        relatedField.setAccessible(true);
+                                        relatedField.set(relatedEntity, relatedResultSet.getObject(column.name()));
+                                    }
+                                }
+                                relatedEntities.add(relatedEntity);
+                            }
+
+                            field.set(entity, relatedEntities);
+                        }
+                    }
+
+                    if (field.isAnnotationPresent(ManyToMany.class)) {
+                        ManyToMany manyToMany = field.getAnnotation(ManyToMany.class);
+                        String joinTable = manyToMany.joinTable();
+                        String joinColumn = manyToMany.joinColumn();
+                        String inverseJoinColumn = manyToMany.inverseJoinColumn();
+
+                        Class<?> relatedClass = (Class<?>) ((java.lang.reflect.ParameterizedType) field.getGenericType())
+                                .getActualTypeArguments()[0];
+
+                        String relatedTableName = relatedClass.getAnnotation(Table.class).name();
+                        String joinQuery = String.format(
+                                "SELECT r.* FROM %s jt INNER JOIN %s r ON jt.%s = r.id WHERE jt.%s = ?",
+                                joinTable, relatedTableName, inverseJoinColumn, joinColumn
+                        );
+
+                        try (PreparedStatement joinStmt = connection.prepareStatement(joinQuery)) {
+                            joinStmt.setObject(1, idValue);
+                            ResultSet relatedResultSet = joinStmt.executeQuery();
+
+                            List<Object> relatedEntities = new ArrayList<>();
+                            while (relatedResultSet.next()) {
+                                Object relatedEntity = relatedClass.getDeclaredConstructor().newInstance();
+                                for (Field relatedField : relatedClass.getDeclaredFields()) {
+                                    Column column = relatedField.getAnnotation(Column.class);
+                                    if (column != null) {
+                                        relatedField.setAccessible(true);
+                                        relatedField.set(relatedEntity, relatedResultSet.getObject(column.name()));
+                                    }
+                                }
+                                relatedEntities.add(relatedEntity);
+                            }
+
+                            field.set(entity, relatedEntities);
+                        }
                     }
                 }
 
@@ -160,7 +302,7 @@ public class EntityManager {
 
             String query = String.format("UPDATE %s SET %s WHERE %s = ?",
                     tableName,
-                    setClause.substring(0, setClause.length() - 1), // Usunięcie ostatniego przecinka
+                    setClause.substring(0, setClause.length() - 1),
                     idColumn);
 
             try (Connection connection = connectionPool.getConnection();

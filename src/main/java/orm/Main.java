@@ -1,39 +1,34 @@
 package orm;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-
 public class Main {
-
     public static void main(String[] args) {
         try {
             ConnectionPool connectionPool = new ConnectionPool();
+            EntityManager entityManager = new EntityManager(connectionPool);
 
-            // Uzyskanie połączenia z puli
-            Connection connection = connectionPool.getConnection();
+            Ocean ocean = new Ocean();
+            ocean.setName("Atlantic Ocean");
 
-            try {
-                // Przykładowe zapytanie
-                String query = "SELECT 1";
-                try (PreparedStatement statement = connection.prepareStatement(query);
-                     ResultSet resultSet = statement.executeQuery()) {
+            Species species = new Species();
+            species.setName("Shark");
+            species.setOcean(ocean);
 
-                    while (resultSet.next()) {
-                        System.out.println("Wynik zapytania: " + resultSet.getInt(1));
-                    }
-                }
-            } finally {
-                // Zwrócenie połączenia do puli
-                connectionPool.releaseConnection(connection);
-            }
+            System.out.println("Zapisywanie gatunku i oceanu...");
+            entityManager.save(ocean);
+            Thread.sleep(10000);
+            entityManager.save(species);
 
-            // Zamknięcie puli połączeń
+            System.out.println("Dane zostały zapisane w bazie!");
+
             connectionPool.close();
-
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
+
 }
+
+
+
+
+

@@ -7,14 +7,13 @@ import org.yaml.snakeyaml.Yaml;
 import static java.lang.Integer.parseInt;
 
 public class Config {
-    private static Config instance; // Statyczne pole przechowujące jedyną instancję klasy
+    private static Config instance;
 
     private String url;
     private String user;
     private String password;
     private int poolSize;
 
-    // Prywatny konstruktor, aby uniemożliwić tworzenie instancji z zewnątrz
     private Config() {
         Yaml yaml = new Yaml();
         InputStream inputStream = this.getClass()
@@ -32,15 +31,13 @@ public class Config {
         this.poolSize = parseInt(obj.get("poolSize").toString());
     }
 
-    // Publiczna metoda zwracająca jedyną instancję klasy
     public static synchronized Config getInstance() {
         if (instance == null) {
-            instance = new Config(); // Tworzymy instancję tylko raz
+            instance = new Config();
         }
         return instance;
     }
 
-    // Gettery
     public String getUrl() {
         return url;
     }
