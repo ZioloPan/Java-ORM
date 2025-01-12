@@ -49,4 +49,14 @@ public class Employee {
     public void setCar(Car car) {
         this.car = car;
     }
+
+    @Override
+    public String toString() {
+        return "Employee{" +
+                "id=" + id +
+                ", name='" + name + '\'' +
+                ", department=" + department +
+                ", car=" + car +
+                '}';
+    }
 }

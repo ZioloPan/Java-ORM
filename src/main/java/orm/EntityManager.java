@@ -42,10 +42,6 @@ public class EntityManager {
             for (Field field : clazz.getDeclaredFields()) {
                 field.setAccessible(true);
 
-                if (field.isAnnotationPresent(Id.class)) {
-                    continue;
-                }
-
                 Column column = field.getAnnotation(Column.class);
                 if (column != null) {
                     columns.append(column.name()).append(",");
@@ -54,7 +50,10 @@ public class EntityManager {
 
                 if (field.isAnnotationPresent(OneToOne.class)) {
                     OneToOne oneToOne = field.getAnnotation(OneToOne.class);
+                    System.out.println(oneToOne);
                     Object relatedEntity = field.get(entity);
+                    System.out.println(relatedEntity);
+
 
                     if (relatedEntity != null) {
                         Field relatedIdField = Arrays.stream(relatedEntity.getClass().getDeclaredFields())
@@ -62,16 +61,23 @@ public class EntityManager {
                                 .findFirst()
                                 .orElseThrow(() -> new RuntimeException("Related entity " + relatedEntity.getClass().getName() + " must have @Id"));
 
-                        relatedIdField.setAccessible(true);
-                        Object relatedIdValue = relatedIdField.get(relatedEntity);
 
-                        if (relatedIdValue == null) {
-                            save(relatedEntity);
-                            relatedIdValue = relatedIdField.get(relatedEntity);
-                        }
+                        System.out.println(relatedIdField);
+                        relatedIdField.setAccessible(true);
+
+                        Object relatedIdValue = relatedIdField.get(relatedEntity);
+                        System.out.println(relatedIdValue);
+
+//                        if (relatedIdValue == null) {
+//                            save(relatedEntity);
+//                            relatedIdValue = relatedIdField.get(relatedEntity);
+//                        }
 
                         columns.append(oneToOne.column()).append(",");
                         values.append("'").append(relatedIdValue).append("',");
+
+                        System.out.println(columns);
+                        System.out.println(values);
                     }
                 }
             }
@@ -80,6 +86,8 @@ public class EntityManager {
             String valuesString = values.substring(0, values.length() - 1);
 
             String query = String.format("INSERT INTO %s (%s) VALUES (%s)", tableName, columnsString, valuesString);
+
+            System.out.println(query);
 
             try (Connection connection = connectionPool.getConnection();
                  PreparedStatement statement = connection.prepareStatement(query, PreparedStatement.RETURN_GENERATED_KEYS)) {
