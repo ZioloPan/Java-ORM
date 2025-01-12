@@ -15,6 +15,10 @@ public class Car {
     @OneToOne(column = "employee_id")
     private Employee employee;
 
+    public void addEmployee(Employee e) {
+        this.employee = e;
+        e.setCar(this);
+    }
     public int getId() {
         return id;
     }

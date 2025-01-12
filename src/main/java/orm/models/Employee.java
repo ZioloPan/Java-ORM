@@ -49,5 +49,4 @@ public class Employee {
     public void setCar(Car car) {
         this.car = car;
     }
-
 }
