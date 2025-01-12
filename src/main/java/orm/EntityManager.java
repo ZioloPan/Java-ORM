@@ -1,6 +1,7 @@
 package orm;
 
 import orm.annotations.*;
+import orm.iterator.CustomList;
 import orm.logging.Observer;
 
 import java.lang.reflect.Field;
@@ -17,7 +18,7 @@ import java.util.List;
 public class EntityManager {
 
     private final ConnectionPool connectionPool;
-    private final List<Observer> observers = new ArrayList<>();
+    private final CustomList<Observer> observers = new CustomList<>();
 
     public EntityManager(ConnectionPool connectionPool) {
         this.connectionPool = connectionPool;
@@ -28,8 +29,8 @@ public class EntityManager {
     }
 
     private void notifyObservers(String message) {
-        for (Observer observer : observers) {
-            observer.notify(message);
+        for (int i = 0; i < observers.size(); i++) {
+            observers.get(i).notify(message);
         }
     }
 
