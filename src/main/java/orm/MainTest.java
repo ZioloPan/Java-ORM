@@ -1,86 +1,81 @@
 package orm;
 
 import orm.logging.LoggerObserver;
-import orm.models.Department;
-import orm.models.Employee;
-import orm.models.Car;
+import orm.models.*;
 
 public class MainTest {
     public static void main(String[] args) {
-
-////        relacja 1-* test
-//        try {
-//            ConnectionPool connectionPool = ConnectionPool.getInstance();
-//            EntityManager entityManager = new EntityManager(connectionPool);
-//
-//            LoggerObserver loggerObserver = new LoggerObserver();
-//            connectionPool.addObserver(loggerObserver);
-//
-//            System.out.println("Pobieranie działu o ID 1...");
-//            Department department = entityManager.find(Department.class, 1);
-//
-//            if (department != null) {
-//                System.out.println("Dział: " + department.getName());
-//                System.out.println("Pracownicy:");
-//                for (Employee employee : department.getEmployees()) {
-//                    System.out.println(" - " + employee.getName());
-//                }
-//            }
-//
-//            connectionPool.close();
-//
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
-
-
-
         try {
+            // Tworzenie puli połączeń i EntityManagera
             ConnectionPool connectionPool = ConnectionPool.getInstance();
             EntityManager entityManager = new EntityManager(connectionPool);
 
+            // Dodanie obserwatora logów
             LoggerObserver loggerObserver = new LoggerObserver();
             connectionPool.addObserver(loggerObserver);
 
-            Department d1 = new Department();
-            d1.setId(1);
-            d1.setName("Pakowanie");
-            Department d2 = new Department();
-            d2.setId(2);
-            d2.setName("Malowanie");
+            // Tworzenie studentów
+            Student s1 = new Student();
+            Student s2 = new Student();
+            Student s3 = new Student();
+            s1.setName("Gabi");
+            s2.setName("Bartek");
+            s3.setName("Ala");
+            s1.setId(1); // Ręczne ustawienie ID
+            s2.setId(2);
+            s3.setId(3);
 
-            Employee e1 = new Employee();
-            e1.setName("Gabi");
-            e1.setId(4);
-            Employee e2 = new Employee();
-            e2.setName("Bartek");
-            e2.setId(5);
-            Employee e3 = new Employee();
-            e3.setName("Ala");
-            e3.setId(6);
+            // Tworzenie projektów
+            Project p1 = new Project();
+            Project p2 = new Project();
+            Project p3 = new Project();
+            Project p4 = new Project();
+            Project p5 = new Project();
+            p1.setName("Bookit");
+            p2.setName("Prosze");
+            p3.setName("Dzialaj");
+            p4.setName("Design");
+            p5.setName("Patterns");
+            p1.setId(1); // Ręczne ustawienie ID
+            p2.setId(2);
+            p3.setId(3);
+            p4.setId(4);
+            p5.setId(5);
 
-//            entityManager.save(d1);
-//            entityManager.save(d2);
+            // Ustawianie relacji ManyToMany (student ↔ projekty)
+            s1.addProjects(p1); // Gabi pracuje nad Bookit
+            s2.addProjects(p2); // Bartek pracuje nad Prosze
+            s3.addProjects(p1); // Ala pracuje nad Bookit
+            s1.addProjects(p2); // Gabi pracuje nad Prosze
+            s2.addProjects(p3); // Bartek pracuje nad Dzialaj
 
-            d1.addEmployee(e1);
-            d2.addEmployee(e2);
-            d1.addEmployee(e3);
+            // Zapisywanie encji w bazie danych
+            entityManager.save(p1);
+            entityManager.save(p2);
+            entityManager.save(p3);
+            entityManager.save(p4);
+            entityManager.save(p5);
 
-            System.out.println(d1);
-            System.out.println(d2);
+            entityManager.save(s1);
+            entityManager.save(s2);
+            entityManager.save(s3);
 
-            entityManager.save(e1);
-            entityManager.save(e2);
-            entityManager.save(e3);
+            // Pobieranie i sprawdzanie danych z bazy
+            System.out.println("Pobieranie studenta o ID 1...");
+            Student fetchedStudent = entityManager.find(Student.class, 1);
+            if (fetchedStudent != null) {
+                System.out.println("Student: " + fetchedStudent.getName());
+                System.out.println("Projekty studenta:");
+                for (Project project : fetchedStudent.getProjects()) {
+                    System.out.println(" - " + project.getName());
+                }
+            }
+
+            // Zamknięcie puli połączeń
+            connectionPool.close();
 
         } catch (Exception e) {
             e.printStackTrace();
         }
-
     }
 }
-
-
-
-
-
