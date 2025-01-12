@@ -17,7 +17,7 @@ import java.util.List;
 public class EntityManager {
 
     private final ConnectionPool connectionPool;
-    private final List<Observer> observers = new ArrayList<>(); // Lista obserwatorów
+    private final List<Observer> observers = new ArrayList<>();
 
     public EntityManager(ConnectionPool connectionPool) {
         this.connectionPool = connectionPool;
