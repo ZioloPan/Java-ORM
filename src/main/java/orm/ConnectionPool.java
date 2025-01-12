@@ -1,8 +1,12 @@
 package orm;
 
+import orm.logging.Observer;
+
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
@@ -10,6 +14,8 @@ public class ConnectionPool {
 
     private static ConnectionPool instance;
     private final BlockingQueue<Connection> connections;
+    private final List<Observer> observers = new ArrayList<>();
+
 
     private ConnectionPool() throws SQLException {
 
@@ -50,6 +56,18 @@ public class ConnectionPool {
             } catch (SQLException e) {
                 e.printStackTrace();
             }
+        }
+    }
+
+
+
+    public void addObserver(Observer observer) {
+        observers.add(observer);
+    }
+
+    public void notifyObservers(String message) {
+        for (int i = 0; i < observers.size(); i++) {
+            observers.get(i).notify(message);
         }
     }
 }

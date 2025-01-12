@@ -1,8 +1,6 @@
 package orm;
 
 import orm.annotations.*;
-import orm.iterator.CustomList;
-import orm.logging.Observer;
 
 import java.lang.reflect.Field;
 import java.sql.Connection;
@@ -18,20 +16,9 @@ import java.util.List;
 public class EntityManager {
 
     private final ConnectionPool connectionPool;
-    private final CustomList<Observer> observers = new CustomList<>();
 
     public EntityManager(ConnectionPool connectionPool) {
         this.connectionPool = connectionPool;
-    }
-
-    public void addObserver(Observer observer) {
-        observers.add(observer);
-    }
-
-    private void notifyObservers(String message) {
-        for (int i = 0; i < observers.size(); i++) {
-            observers.get(i).notify(message);
-        }
     }
 
     /**
@@ -109,11 +96,11 @@ public class EntityManager {
                         idField.set(entity, generatedKeys.getObject(1));
                     }
                 }
-                notifyObservers("Sukces: Encja zapisana w tabeli " + tableName);
+                connectionPool.notifyObservers("Sukces: Encja zapisana w tabeli " + tableName);
             }
 
         } catch (Exception e) {
-            notifyObservers("Błąd: Klasa " + clazz.getName() + " nie jest oznaczona jako @Table");
+            connectionPool.notifyObservers("Błąd: Klasa " + clazz.getName() + " nie jest oznaczona jako @Table");
             throw new RuntimeException("Entity save Error: " + e.getMessage());
         }
     }
@@ -132,7 +119,7 @@ public class EntityManager {
     public <T> T find(Class<T> clazz, Object id) {
         Table table = clazz.getAnnotation(Table.class);
         if (table == null) {
-            notifyObservers("Błąd: Klasa " + clazz.getName() + " nie jest oznaczona jako @Table");
+            connectionPool.notifyObservers("Błąd: Klasa " + clazz.getName() + " nie jest oznaczona jako @Table");
             throw new RuntimeException("Klasa " + clazz.getName() + " nie jest oznaczona jako @Table");
         }
 
@@ -153,7 +140,7 @@ public class EntityManager {
         }
 
         if (idColumn == null) {
-            notifyObservers("Błąd: Klasa " + clazz.getName() + " nie zawiera pola oznaczonego jako @Id");
+            connectionPool.notifyObservers("Błąd: Klasa " + clazz.getName() + " nie zawiera pola oznaczonego jako @Id");
             throw new RuntimeException("Klasa " + clazz.getName() + " nie zawiera pola oznaczonego jako @Id");
         }
 
@@ -268,14 +255,14 @@ public class EntityManager {
                         }
                     }
                 }
-                notifyObservers("Sukces: Znaleziono encję w tabeli " + tableName + " o ID " + id);
+                connectionPool.notifyObservers("Sukces: Znaleziono encję w tabeli " + tableName + " o ID " + id);
                 return entity;
             } else {
-                notifyObservers("Nie znaleziono encji w tabeli " + tableName + " o ID " + id);
+                connectionPool.notifyObservers("Nie znaleziono encji w tabeli " + tableName + " o ID " + id);
             }
 
         } catch (Exception e) {
-            notifyObservers("Błąd podczas wyszukiwania encji: " + e.getMessage());
+            connectionPool.notifyObservers("Błąd podczas wyszukiwania encji: " + e.getMessage());
             throw new RuntimeException("Błąd podczas wyszukiwania encji: " + e.getMessage());
         }
 
@@ -291,7 +278,7 @@ public class EntityManager {
         Class<?> clazz = entity.getClass();
         Table table = clazz.getAnnotation(Table.class);
         if (table == null) {
-            notifyObservers("Błąd: Klasa " + clazz.getName() + " nie jest oznaczona jako @Table");
+            connectionPool.notifyObservers("Błąd: Klasa " + clazz.getName() + " nie jest oznaczona jako @Table");
             throw new RuntimeException("Klasa " + clazz.getName() + " nie jest oznaczona jako @Table");
         }
 
@@ -315,7 +302,7 @@ public class EntityManager {
             }
 
             if (idColumn == null || idValue == null) {
-                notifyObservers("Błąd: Encja " + clazz.getName() + " nie zawiera poprawnego klucza głównego");
+                connectionPool.notifyObservers("Błąd: Encja " + clazz.getName() + " nie zawiera poprawnego klucza głównego");
                 throw new RuntimeException("Encja " + clazz.getName() + " nie zawiera poprawnego klucza głównego");
             }
 
@@ -329,9 +316,9 @@ public class EntityManager {
                 statement.setObject(1, idValue);
                 statement.executeUpdate();
             }
-            notifyObservers("Sukces: Zaktualizowano encję w tabeli " + tableName);
+            connectionPool.notifyObservers("Sukces: Zaktualizowano encję w tabeli " + tableName);
         } catch (Exception e) {
-            notifyObservers("Błąd podczas aktualizacji encji: " + e.getMessage());
+            connectionPool.notifyObservers("Błąd podczas aktualizacji encji: " + e.getMessage());
             throw new RuntimeException("Błąd podczas aktualizacji encji: " + e.getMessage());
         }
     }
