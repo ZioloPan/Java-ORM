@@ -187,7 +187,7 @@ public class EntityManager {
                     idField.set(entity, generatedKeys.getObject(1));
                 }
             }
-            connectionPool.notifyObservers("Sukces: Encja zapisana w tabeli " + tableName);
+            connectionPool.notifyObservers("Encja zapisana w tabeli " + tableName + ": " + entity.toString());
         } catch (Exception e) {
             throw new RuntimeException("Insert Query Execution Error: " + e.getMessage());
         }

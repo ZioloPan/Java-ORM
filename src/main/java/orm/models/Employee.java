@@ -52,6 +52,6 @@ public class Employee {
 
     @Override
     public String toString() {
-        return name;
+        return "Employee(id: " + id + ", name: " + name + ")";
     }
 }

@@ -52,7 +52,7 @@ public class Department {
 
     @Override
     public String toString() {
-        return name + employees;
+        return "Department(id: " + id + ",name: " + name + ")";
     }
 }
 

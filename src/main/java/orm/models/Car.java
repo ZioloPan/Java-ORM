@@ -42,4 +42,9 @@ public class Car {
     public void setEmployee(Employee employee) {
         this.employee = employee;
     }
+
+    @Override
+    public String toString() {
+        return "Car(id: " + id + ", model: " + model + ")";
+    }
 }
