@@ -8,9 +8,10 @@ import java.util.concurrent.BlockingQueue;
 
 public class ConnectionPool {
 
+    private static ConnectionPool instance;
     private final BlockingQueue<Connection> connections;
 
-    public ConnectionPool() throws SQLException {
+    private ConnectionPool() throws SQLException {
 
         Config config = Config.getInstance();
         int size = config.getPoolSize();
@@ -20,6 +21,13 @@ public class ConnectionPool {
         for (int i = 0; i < size; i++) {
             connections.add(DriverManager.getConnection(config.getUrl(), config.getUser(), config.getPassword()));
         }
+    }
+
+    public static synchronized ConnectionPool getInstance() throws SQLException {
+        if (instance == null) {
+            instance = new ConnectionPool();
+        }
+        return instance;
     }
 
     public Connection getConnection() throws InterruptedException {

@@ -1,12 +1,12 @@
 package orm;
 
 import orm.annotations.*;
+import orm.logging.Observer;
 
 import java.lang.reflect.Field;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -17,9 +17,20 @@ import java.util.List;
 public class EntityManager {
 
     private final ConnectionPool connectionPool;
+    private final List<Observer> observers = new ArrayList<>(); // Lista obserwatorów
 
     public EntityManager(ConnectionPool connectionPool) {
         this.connectionPool = connectionPool;
+    }
+
+    public void addObserver(Observer observer) {
+        observers.add(observer);
+    }
+
+    private void notifyObservers(String message) {
+        for (Observer observer : observers) {
+            observer.notify(message);
+        }
     }
 
     /**
@@ -97,10 +108,11 @@ public class EntityManager {
                         idField.set(entity, generatedKeys.getObject(1));
                     }
                 }
+                notifyObservers("Sukces: Encja zapisana w tabeli " + tableName);
             }
 
         } catch (Exception e) {
-            e.printStackTrace();
+            notifyObservers("Błąd: Klasa " + clazz.getName() + " nie jest oznaczona jako @Table");
             throw new RuntimeException("Entity save Error: " + e.getMessage());
         }
     }
@@ -119,6 +131,7 @@ public class EntityManager {
     public <T> T find(Class<T> clazz, Object id) {
         Table table = clazz.getAnnotation(Table.class);
         if (table == null) {
+            notifyObservers("Błąd: Klasa " + clazz.getName() + " nie jest oznaczona jako @Table");
             throw new RuntimeException("Klasa " + clazz.getName() + " nie jest oznaczona jako @Table");
         }
 
@@ -139,6 +152,7 @@ public class EntityManager {
         }
 
         if (idColumn == null) {
+            notifyObservers("Błąd: Klasa " + clazz.getName() + " nie zawiera pola oznaczonego jako @Id");
             throw new RuntimeException("Klasa " + clazz.getName() + " nie zawiera pola oznaczonego jako @Id");
         }
 
@@ -253,12 +267,14 @@ public class EntityManager {
                         }
                     }
                 }
-
+                notifyObservers("Sukces: Znaleziono encję w tabeli " + tableName + " o ID " + id);
                 return entity;
+            } else {
+                notifyObservers("Nie znaleziono encji w tabeli " + tableName + " o ID " + id);
             }
 
         } catch (Exception e) {
-            e.printStackTrace();
+            notifyObservers("Błąd podczas wyszukiwania encji: " + e.getMessage());
             throw new RuntimeException("Błąd podczas wyszukiwania encji: " + e.getMessage());
         }
 
@@ -274,6 +290,7 @@ public class EntityManager {
         Class<?> clazz = entity.getClass();
         Table table = clazz.getAnnotation(Table.class);
         if (table == null) {
+            notifyObservers("Błąd: Klasa " + clazz.getName() + " nie jest oznaczona jako @Table");
             throw new RuntimeException("Klasa " + clazz.getName() + " nie jest oznaczona jako @Table");
         }
 
@@ -297,6 +314,7 @@ public class EntityManager {
             }
 
             if (idColumn == null || idValue == null) {
+                notifyObservers("Błąd: Encja " + clazz.getName() + " nie zawiera poprawnego klucza głównego");
                 throw new RuntimeException("Encja " + clazz.getName() + " nie zawiera poprawnego klucza głównego");
             }
 
@@ -310,9 +328,9 @@ public class EntityManager {
                 statement.setObject(1, idValue);
                 statement.executeUpdate();
             }
-
+            notifyObservers("Sukces: Zaktualizowano encję w tabeli " + tableName);
         } catch (Exception e) {
-            e.printStackTrace();
+            notifyObservers("Błąd podczas aktualizacji encji: " + e.getMessage());
             throw new RuntimeException("Błąd podczas aktualizacji encji: " + e.getMessage());
         }
     }
