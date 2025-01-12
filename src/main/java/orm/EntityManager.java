@@ -8,6 +8,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -42,37 +43,10 @@ public class EntityManager {
             for (Field field : clazz.getDeclaredFields()) {
                 field.setAccessible(true);
 
-                Column column = field.getAnnotation(Column.class);
-                if (column != null) {
-                    columns.append(column.name()).append(",");
-                    values.append("'").append(field.get(entity)).append("',");
-                }
-
-                if (field.isAnnotationPresent(OneToOne.class)) {
-                    OneToOne oneToOne = field.getAnnotation(OneToOne.class);
-                    Object relatedEntity = field.get(entity);
-
-
-                    if (relatedEntity != null) {
-                        Field relatedIdField = Arrays.stream(relatedEntity.getClass().getDeclaredFields())
-                                .filter(f -> f.isAnnotationPresent(Id.class))
-                                .findFirst()
-                                .orElseThrow(() -> new RuntimeException("Related entity " + relatedEntity.getClass().getName() + " must have @Id"));
-
-
-                        relatedIdField.setAccessible(true);
-
-                        Object relatedIdValue = relatedIdField.get(relatedEntity);
-
-//                        if (relatedIdValue == null) {
-//                            save(relatedEntity);
-//                            relatedIdValue = relatedIdField.get(relatedEntity);
-//                        }
-
-                        columns.append(oneToOne.column()).append(",");
-                        values.append("'").append(relatedIdValue).append("',");
-                    }
-                }
+                handleColumnField(field, entity, columns, values);
+                handleOneToOneField(field, entity, columns, values);
+                handleManyToOneField(field, entity, columns, values);
+                handleOneToManyField(field, entity);
             }
 
             String columnsString = columns.substring(0, columns.length() - 1);
@@ -80,30 +54,96 @@ public class EntityManager {
 
             String query = String.format("INSERT INTO %s (%s) VALUES (%s)", tableName, columnsString, valuesString);
 
-            System.out.println(query);
-
-            try (Connection connection = connectionPool.getConnection();
-                 PreparedStatement statement = connection.prepareStatement(query, PreparedStatement.RETURN_GENERATED_KEYS)) {
-                statement.executeUpdate();
-
-                try (ResultSet generatedKeys = statement.getGeneratedKeys()) {
-                    if (generatedKeys.next()) {
-                        Field idField = Arrays.stream(clazz.getDeclaredFields())
-                                .filter(f -> f.isAnnotationPresent(Id.class))
-                                .findFirst()
-                                .orElseThrow(() -> new RuntimeException("Entity " + clazz.getName() + " must have @Id"));
-
-                        idField.setAccessible(true);
-                        idField.set(entity, generatedKeys.getObject(1));
-                    }
-                }
-                connectionPool.notifyObservers("Encja (" + valuesString + ") zapisana w tabeli " + tableName);
-            }
+            executeInsertQuery(query, clazz, entity, tableName);
 
         } catch (Exception e) {
+            connectionPool.notifyObservers("Błąd: Klasa " + clazz.getName() + " nie jest oznaczona jako @Table");
             throw new RuntimeException("Entity save Error: " + e.getMessage());
         }
     }
+
+    private void handleColumnField(Field field, Object entity, StringBuilder columns, StringBuilder values) throws IllegalAccessException {
+        Column column = field.getAnnotation(Column.class);
+        if (column != null) {
+            columns.append(column.name()).append(",");
+            values.append("'").append(field.get(entity)).append("',");
+        }
+    }
+
+    private void handleOneToOneField(Field field, Object entity, StringBuilder columns, StringBuilder values) throws IllegalAccessException {
+        if (field.isAnnotationPresent(OneToOne.class)) {
+            OneToOne oneToOne = field.getAnnotation(OneToOne.class);
+            Object relatedEntity = field.get(entity);
+
+            if (relatedEntity != null) {
+                Field relatedIdField = getIdField(relatedEntity.getClass());
+                relatedIdField.setAccessible(true);
+
+                Object relatedIdValue = relatedIdField.get(relatedEntity);
+
+                columns.append(oneToOne.column()).append(",");
+                values.append("'").append(relatedIdValue).append("',");
+            }
+        }
+    }
+
+    private void handleManyToOneField(Field field, Object entity, StringBuilder columns, StringBuilder values) throws IllegalAccessException {
+        if (field.isAnnotationPresent(ManyToOne.class)) {
+            ManyToOne manyToOne = field.getAnnotation(ManyToOne.class);
+            Object relatedEntity = field.get(entity);
+
+            if (relatedEntity != null) {
+                Field relatedIdField = getIdField(relatedEntity.getClass());
+                relatedIdField.setAccessible(true);
+
+                Object relatedIdValue = relatedIdField.get(relatedEntity);
+
+                columns.append(manyToOne.column()).append(",");
+                values.append("'").append(relatedIdValue).append("',");
+            }
+        }
+    }
+
+    private void handleOneToManyField(Field field, Object entity) throws IllegalAccessException {
+        if (field.isAnnotationPresent(OneToMany.class)) {
+            Collection<?> relatedEntities = (Collection<?>) field.get(entity);
+
+            if (relatedEntities != null && !relatedEntities.isEmpty()) {
+                for (Object relatedEntity : relatedEntities) {
+                    Field relatedIdField = getIdField(relatedEntity.getClass());
+                    relatedIdField.setAccessible(true);
+                    Object relatedIdValue = relatedIdField.get(relatedEntity);
+                    // Handle related entities as needed (e.g., saving to another table)
+                }
+            }
+        }
+    }
+
+    private Field getIdField(Class<?> clazz) {
+        return Arrays.stream(clazz.getDeclaredFields())
+                .filter(f -> f.isAnnotationPresent(Id.class))
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("Entity " + clazz.getName() + " must have @Id"));
+    }
+
+    private <T> void executeInsertQuery(String query, Class<?> clazz, T entity, String tableName) {
+        try (Connection connection = connectionPool.getConnection();
+             PreparedStatement statement = connection.prepareStatement(query, PreparedStatement.RETURN_GENERATED_KEYS)) {
+            statement.executeUpdate();
+
+            try (ResultSet generatedKeys = statement.getGeneratedKeys()) {
+                if (generatedKeys.next()) {
+                    Field idField = getIdField(clazz);
+                    idField.setAccessible(true);
+                    idField.set(entity, generatedKeys.getObject(1));
+                }
+            }
+            connectionPool.notifyObservers("Sukces: Encja zapisana w tabeli " + tableName);
+        } catch (Exception e) {
+            throw new RuntimeException("Insert Query Execution Error: " + e.getMessage());
+        }
+    }
+
 
 
 
