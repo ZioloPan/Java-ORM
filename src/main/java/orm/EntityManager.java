@@ -7,10 +7,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.List;
 
 /**
  * Klasa EntityManager zarządzająca operacjami CRUD na encjach.
@@ -133,6 +131,11 @@ public class EntityManager {
                     relatedIdField.setAccessible(true);
 
                     Object relatedIdValue = relatedIdField.get(relatedEntity);
+
+                        if (relatedIdValue == null) {
+                            save(relatedEntity);
+                            relatedIdValue = relatedIdField.get(relatedEntity);
+                        }
                     // Insert into the join table as needed
                     String joinTable = manyToMany.joinTable();
                     String joinColumn = manyToMany.joinColumn();

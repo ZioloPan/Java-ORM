@@ -59,41 +59,57 @@ public class RelationsTest {
             LoggerObserver loggerObserver = new LoggerObserver();
             connectionPool.addObserver(loggerObserver);
 
-//            Department d1 = new Department();
-//            d1.setId(1);
-//            d1.setName("Pakowanie");
-//            Department d2 = new Department();
-//            d2.setId(2);
-//            d2.setName("Malowanie");
+            Department d1 = new Department();
+            d1.setId(1);
+            d1.setName("Pakowanie");
+            Department d2 = new Department();
+            d2.setId(2);
+            d2.setName("Malowanie");
 
-//            Employee e1 = new Employee();
-//            e1.setName("Gabi");
-//            e1.setId(4);
-//            Employee e2 = new Employee();
-//            e2.setName("Bartek");
-//            e2.setId(5);
-//            Employee e3 = new Employee();
-//            e3.setName("Ala");
-//            e3.setId(6);
-            Employee e1 = entityManager.find(Employee.class, 1);
-            System.out.println(e1);
-            Employee e2 = entityManager.find(Employee.class, 2);
-            Employee e3 = entityManager.find(Employee.class, 3);
+            Employee e1 = new Employee();
+            e1.setName("Gabi");
+            e1.setId(4);
+            Employee e2 = new Employee();
+            e2.setName("Bartek");
+            e2.setId(5);
+            Employee e3 = new Employee();
+            e3.setName("Ala");
+            e3.setId(6);
+            entityManager.save(d1);
+            entityManager.save(d2);
 
+//            Employee e1 = entityManager.find(Employee.class, 1);
+//            System.out.println(e1);
+//            Employee e2 = entityManager.find(Employee.class, 2);
+//            System.out.println(e2);
+//            Employee e3 = entityManager.find(Employee.class, 3);
+//            System.out.println(e3);
 
-//            entityManager.save(d1);
-//            entityManager.save(d2);
-//
-//            d1.addEmployee(e1);
-//            d2.addEmployee(e2);
-//            d1.addEmployee(e3);
-//
-////            System.out.println(d1);
-////            System.out.println(d2);
-//
-//            entityManager.save(e1);
-//            entityManager.save(e2);
-//            entityManager.save(e3);
+            d1.addEmployee(e1);
+            d2.addEmployee(e2);
+            d1.addEmployee(e3);
+
+            entityManager.save(e1);
+            entityManager.save(e2);
+            entityManager.save(e3);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Test
+    @Order(3)
+    void update() {
+        try {
+            ConnectionPool connectionPool = ConnectionPool.getInstance();
+            EntityManager entityManager = new EntityManager(connectionPool);
+
+            LoggerObserver loggerObserver = new LoggerObserver();
+            connectionPool.addObserver(loggerObserver);
+
+            Employee e = entityManager.find(Employee.class, 4);
+            System.out.println(e.getDepartment());
 
         } catch (Exception e) {
             e.printStackTrace();
