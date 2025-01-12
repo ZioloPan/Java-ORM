@@ -1,6 +1,7 @@
 package orm;
 
 import orm.annotations.*;
+import orm.logging.LoggerObserver;
 
 import java.lang.reflect.Field;
 import java.sql.Connection;
@@ -18,8 +19,9 @@ public class EntityManager {
 
     private final ConnectionPool connectionPool;
 
-    public EntityManager(ConnectionPool connectionPool) {
-        this.connectionPool = connectionPool;
+    public EntityManager(LoggerObserver loggerObserver) throws SQLException {
+        this.connectionPool = ConnectionPool.getInstance();
+        connectionPool.addObserver(loggerObserver);
     }
 
     /**

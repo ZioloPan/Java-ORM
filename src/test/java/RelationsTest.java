@@ -12,11 +12,7 @@ public class RelationsTest {
     @Order(1)
     void oneToOneTest() {
         try {
-            ConnectionPool connectionPool = ConnectionPool.getInstance();
-            EntityManager entityManager = new EntityManager(connectionPool);
-
-            LoggerObserver loggerObserver = new LoggerObserver();
-            connectionPool.addObserver(loggerObserver);
+            EntityManager entityManager = new EntityManager(new LoggerObserver());
 
             Car c1 = new Car();
             c1.setModel("bmw");
@@ -53,11 +49,7 @@ public class RelationsTest {
     @Order(2)
     void oneToManyTest() {
         try {
-            ConnectionPool connectionPool = ConnectionPool.getInstance();
-            EntityManager entityManager = new EntityManager(connectionPool);
-
-            LoggerObserver loggerObserver = new LoggerObserver();
-            connectionPool.addObserver(loggerObserver);
+            EntityManager entityManager = new EntityManager(new LoggerObserver());
 
             Department d1 = new Department();
             d1.setId(1);
@@ -65,6 +57,9 @@ public class RelationsTest {
             Department d2 = new Department();
             d2.setId(2);
             d2.setName("Malowanie");
+
+            entityManager.save(d1);
+            entityManager.save(d2);
 
             Employee e1 = new Employee();
             e1.setName("Gabi");
@@ -75,8 +70,6 @@ public class RelationsTest {
             Employee e3 = new Employee();
             e3.setName("Ala");
             e3.setId(6);
-            entityManager.save(d1);
-            entityManager.save(d2);
 
 //            Employee e1 = entityManager.find(Employee.class, 1);
 //            System.out.println(e1);
@@ -100,22 +93,27 @@ public class RelationsTest {
 
     @Test
     @Order(3)
-    void update() {
+    void updateManyToOne() {
         try {
-            ConnectionPool connectionPool = ConnectionPool.getInstance();
-            EntityManager entityManager = new EntityManager(connectionPool);
+            EntityManager entityManager = new EntityManager(new LoggerObserver());
 
-            LoggerObserver loggerObserver = new LoggerObserver();
-            connectionPool.addObserver(loggerObserver);
-
-            // update employee's department (ManyToOne)
             Employee e = entityManager.find(Employee.class, 4);
             Department d = entityManager.find(Department.class, 2);
             e.setDepartment(d);
             entityManager.update(e);
 
-            // update car's employee (OneToOne)
-            Employee e1 = entityManager.find(Employee.class, 1);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Test
+    @Order(4)
+    void updateOneToOne() {
+        try {
+            EntityManager entityManager = new EntityManager(new LoggerObserver());
+
+            Employee e1 = entityManager.find(Employee.class, 2);
             Car c1 = entityManager.find(Car.class, 2);
             c1.setEmployee(e1);
             entityManager.update(c1);
@@ -126,16 +124,12 @@ public class RelationsTest {
     }
 
     @Test
-    @Order(4)
+    @Order(5)
     void findRelatedFields() {
         try {
-            ConnectionPool connectionPool = ConnectionPool.getInstance();
-            EntityManager entityManager = new EntityManager(connectionPool);
+            EntityManager entityManager = new EntityManager(new LoggerObserver());
 
-            LoggerObserver loggerObserver = new LoggerObserver();
-            connectionPool.addObserver(loggerObserver);
-
-            Employee e3 = entityManager.find(Employee.class, 1);
+            Employee e3 = entityManager.find(Employee.class, 2);
             System.out.println("got:");
             System.out.println(e3.getCar());
         } catch (Exception e) {

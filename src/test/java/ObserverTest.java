@@ -17,11 +17,7 @@ public class ObserverTest {
 
         Runnable task1 = () -> {
             try {
-                ConnectionPool connectionPool = ConnectionPool.getInstance();
-                EntityManager entityManager = new EntityManager(connectionPool);
-
-                LoggerObserver loggerObserver = new LoggerObserver();
-                connectionPool.addObserver(loggerObserver);
+                EntityManager entityManager = new EntityManager(new LoggerObserver());
 
                 Employee e1 = new Employee();
                 e1.setName("Gabi");
@@ -43,9 +39,7 @@ public class ObserverTest {
 
         Runnable task2 = () -> {
             try {
-                ConnectionPool connectionPool = ConnectionPool.getInstance();
-                LoggerObserver loggerObserver = new LoggerObserver();
-                connectionPool.addObserver(loggerObserver);
+                EntityManager entityManager = new EntityManager(new LoggerObserver());
             } catch (SQLException e) {
                 throw new RuntimeException(e);
             }
