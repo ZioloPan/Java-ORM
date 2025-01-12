@@ -108,9 +108,36 @@ public class RelationsTest {
             LoggerObserver loggerObserver = new LoggerObserver();
             connectionPool.addObserver(loggerObserver);
 
+            // update employee's department (ManyToOne)
             Employee e = entityManager.find(Employee.class, 4);
-            System.out.println(e.getDepartment());
+            Department d = entityManager.find(Department.class, 2);
+            e.setDepartment(d);
+            entityManager.update(e);
 
+            // update car's employee (OneToOne)
+            Employee e1 = entityManager.find(Employee.class, 1);
+            Car c1 = entityManager.find(Car.class, 2);
+            c1.setEmployee(e1);
+            entityManager.update(c1);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Test
+    @Order(4)
+    void findRelatedFields() {
+        try {
+            ConnectionPool connectionPool = ConnectionPool.getInstance();
+            EntityManager entityManager = new EntityManager(connectionPool);
+
+            LoggerObserver loggerObserver = new LoggerObserver();
+            connectionPool.addObserver(loggerObserver);
+
+            Employee e3 = entityManager.find(Employee.class, 1);
+            System.out.println("got:");
+            System.out.println(e3.getCar());
         } catch (Exception e) {
             e.printStackTrace();
         }

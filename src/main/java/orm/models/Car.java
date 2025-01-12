@@ -12,7 +12,7 @@ public class Car {
     @Column(name = "model")
     private String model;
 
-    @OneToOne(column = "employee_id")
+    @OneToOne(column = "employee_id", foreignKeyInThisTable = true)
     private Employee employee;
 
     public void addEmployee(Employee e) {

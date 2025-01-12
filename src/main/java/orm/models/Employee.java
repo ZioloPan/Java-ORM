@@ -15,7 +15,7 @@ public class Employee {
     @ManyToOne(column = "department_id")
     private Department department;
 
-    @OneToOne(column = "car_id")
+    @OneToOne(column = "employee_id", foreignKeyInThisTable = false)
     private Car car;
 
     public int getId() {

@@ -9,6 +9,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Objects;
 
 /**
  * Klasa EntityManager zarządzająca operacjami CRUD na encjach.
@@ -247,8 +248,12 @@ public class EntityManager {
                         field.set(entity, resultSet.getObject(column.name()));
                     }
 
-                    if (field.isAnnotationPresent(ManyToMany.class)) {
-                        handleManyToManyField(field, entity);
+                    if(field.isAnnotationPresent(OneToOne.class)) {
+                        OneToOne oneToOne = field.getAnnotation(OneToOne.class);
+                        if(!oneToOne.foreignKeyInThisTable()) {
+                            var found = findOneToOne(field.getType(), id, oneToOne.column());
+                            field.set(entity, found);
+                        }
                     }
                 }
                 return entity;
@@ -260,6 +265,66 @@ public class EntityManager {
 
         return null;
     }
+
+    public <T> T findOneToOne(Class<T> clazz, Object id, String columnName) {
+        Table table = clazz.getAnnotation(Table.class);
+        if (table == null) {
+            throw new RuntimeException("Class " + clazz.getName() + " is not mapped in DB");
+        }
+
+        String tableName = table.name();
+        String idColumn = null;
+        Object idValue = id;
+
+        for (Field field : clazz.getDeclaredFields()) {
+            field.setAccessible(true); // Ustaw dostęp do pola
+            if (field.isAnnotationPresent(OneToOne.class)) {
+                OneToOne oneToOne = field.getAnnotation(OneToOne.class);
+                var idColumnTemp = oneToOne.column();
+                if(Objects.equals(columnName, idColumnTemp)){
+                    idColumn = idColumnTemp;
+                    break;
+                }
+            }
+        }
+
+        if (idColumn == null) {
+            throw new RuntimeException("Class " + clazz.getName() + " has no @Id field");
+        }
+
+        String query = String.format("SELECT * FROM %s WHERE %s = ?", tableName, idColumn);
+
+        try (Connection connection = connectionPool.getConnection();
+             PreparedStatement statement = connection.prepareStatement(query)) {
+
+            statement.setObject(1, idValue);
+            ResultSet resultSet = statement.executeQuery();
+
+            if (resultSet.next()) {
+                T entity = clazz.getDeclaredConstructor().newInstance();
+
+                for (Field field : clazz.getDeclaredFields()) {
+                    field.setAccessible(true);
+
+                    if (field.isAnnotationPresent(Column.class)) {
+                        Column column = field.getAnnotation(Column.class);
+                        field.set(entity, resultSet.getObject(column.name()));
+                    }
+                }
+                return entity;
+            }
+
+        } catch (Exception e) {
+            throw new RuntimeException("Find Query Execution Error: " + e.getMessage());
+        }
+
+        return null;
+    }
+
+
+
+
+
 
 
     /**
@@ -289,6 +354,34 @@ public class EntityManager {
                         idValue = field.get(entity);
                     } else {
                         setClause.append(column.name()).append(" = '").append(field.get(entity)).append("',");
+                    }
+                }
+
+                if (field.isAnnotationPresent(ManyToOne.class)) {
+                    ManyToOne manyToOne = field.getAnnotation(ManyToOne.class);
+                    Object relatedEntity = field.get(entity);
+
+                    if (relatedEntity != null) {
+                        Field relatedIdField = getIdField(relatedEntity.getClass());
+                        relatedIdField.setAccessible(true);
+
+                        Object relatedIdValue = relatedIdField.get(relatedEntity);
+                        setClause.append(manyToOne.column()).append(" = '").append(relatedIdValue).append("',");
+                    }
+                }
+
+                if (field.isAnnotationPresent(OneToOne.class)) {
+                    OneToOne oneToOne = field.getAnnotation(OneToOne.class);
+                    Object relatedEntity = field.get(entity);
+
+                    if (relatedEntity != null) {
+                        Field relatedIdField = getIdField(relatedEntity.getClass());
+                        relatedIdField.setAccessible(true);
+                        Object relatedIdValue = relatedIdField.get(relatedEntity);
+
+                        if(oneToOne.foreignKeyInThisTable()) {
+                            setClause.append(oneToOne.column()).append(" = '").append(relatedIdValue).append("',");
+                        }
                     }
                 }
             }
