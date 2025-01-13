@@ -114,7 +114,6 @@ public class EntityManager {
                     Field relatedIdField = getIdField(relatedEntity.getClass());
                     relatedIdField.setAccessible(true);
                     Object relatedIdValue = relatedIdField.get(relatedEntity);
-                    // Handle related entities as needed (e.g., saving to another table)
                 }
             }
         }
@@ -168,8 +167,10 @@ public class EntityManager {
 
 
     private <T> void executeInsertQuery(String query, Class<?> clazz, T entity, String tableName) {
-        try (Connection connection = connectionPool.getConnection();
-             PreparedStatement statement = connection.prepareStatement(query, PreparedStatement.RETURN_GENERATED_KEYS)) {
+        Connection connection = null;
+        try {
+            connection = connectionPool.getConnection();
+            PreparedStatement statement = connection.prepareStatement(query, PreparedStatement.RETURN_GENERATED_KEYS);
             statement.executeUpdate();
 
             try (ResultSet generatedKeys = statement.getGeneratedKeys()) {
@@ -182,6 +183,10 @@ public class EntityManager {
             connectionPool.notifyObservers("Encja zapisana w tabeli " + tableName + ": " + entity.toString());
         } catch (Exception e) {
             throw new RuntimeException("Insert Query Execution Error: " + e.getMessage());
+        }  finally {
+            if (connection != null) {
+                connectionPool.releaseConnection(connection);
+            }
         }
     }
 
@@ -205,7 +210,7 @@ public class EntityManager {
         Object idValue = id;
 
         for (Field field : clazz.getDeclaredFields()) {
-            field.setAccessible(true); // Ustaw dostęp do pola
+            field.setAccessible(true);
             if (field.isAnnotationPresent(Id.class)) {
                 Column column = field.getAnnotation(Column.class);
                 idColumn = (column != null) ? column.name() : field.getName();
@@ -218,10 +223,10 @@ public class EntityManager {
         }
 
         String query = String.format("SELECT * FROM %s WHERE %s = ?", tableName, idColumn);
-
-        try (Connection connection = connectionPool.getConnection();
-             PreparedStatement statement = connection.prepareStatement(query)) {
-
+        Connection connection = null;
+        try {
+            connection = connectionPool.getConnection();
+            PreparedStatement statement = connection.prepareStatement(query);
             statement.setObject(1, idValue);
             ResultSet resultSet = statement.executeQuery();
 
@@ -256,15 +261,21 @@ public class EntityManager {
 
                     if(field.isAnnotationPresent(ManyToOne.class)) {
                         ManyToOne manyToOne = field.getAnnotation(ManyToOne.class);
-                        var found = findManyToOne(field.getType(), id);
-                        field.set(entity, found);
+                        Object relatedIdValue = resultSet.getObject(manyToOne.column());
+                        if (relatedIdValue != null) {
+                            var found = findManyToOne(field.getType(), relatedIdValue);
+                            field.set(entity, found);
+                        }
                     }
                 }
                 return entity;
             }
-
         } catch (Exception e) {
             throw new RuntimeException("Find Query Execution Error: " + e.getMessage());
+        } finally {
+            if (connection != null) {
+                connectionPool.releaseConnection(connection);
+            }
         }
 
         return null;
@@ -298,8 +309,10 @@ public class EntityManager {
 
         String query = String.format("SELECT * FROM %s WHERE %s = ?", tableName, idColumn);
 
-        try (Connection connection = connectionPool.getConnection();
-             PreparedStatement statement = connection.prepareStatement(query)) {
+        Connection connection = null;
+        try {
+            connection = connectionPool.getConnection();
+            PreparedStatement statement = connection.prepareStatement(query);
 
             statement.setObject(1, idValue);
             ResultSet resultSet = statement.executeQuery();
@@ -317,9 +330,12 @@ public class EntityManager {
                 }
                 return entity;
             }
-
         } catch (Exception e) {
             throw new RuntimeException("Find Query Execution Error: " + e.getMessage());
+        } finally {
+            if (connection != null) {
+                connectionPool.releaseConnection(connection);
+            }
         }
 
         return null;
@@ -352,8 +368,10 @@ public class EntityManager {
 
         String query = String.format("SELECT * FROM %s WHERE %s = ?", tableName, idColumn);
 
-        try (Connection connection = connectionPool.getConnection();
-             PreparedStatement statement = connection.prepareStatement(query)) {
+        Connection connection = null;
+        try {
+            connection = connectionPool.getConnection();
+            PreparedStatement statement = connection.prepareStatement(query);
 
             statement.setObject(1, id);
             ResultSet resultSet = statement.executeQuery();
@@ -370,15 +388,15 @@ public class EntityManager {
                     }
                 }
                 entities.add(entity);
-                return entities;
             }
-
-
+            return entities;
         } catch (Exception e) {
             throw new RuntimeException("Find Query Execution Error: " + e.getMessage());
+        } finally {
+            if (connection != null) {
+                connectionPool.releaseConnection(connection);
+            }
         }
-
-        return null;
     }
 
 
@@ -404,11 +422,12 @@ public class EntityManager {
             throw new RuntimeException("Class " + clazz.getName() + " has no @Id field");
         }
 
-        System.out.println(tableName);
         String query = String.format("SELECT * FROM %s WHERE %s = ?", tableName, idColumn);
 
-        try (Connection connection = connectionPool.getConnection();
-             PreparedStatement statement = connection.prepareStatement(query)) {
+        Connection connection = null;
+        try {
+            connection = connectionPool.getConnection();
+            PreparedStatement statement = connection.prepareStatement(query);
 
             statement.setObject(1, id);
             ResultSet resultSet = statement.executeQuery();
@@ -426,10 +445,12 @@ public class EntityManager {
                 }
                 return entity;
             }
-
-
         } catch (Exception e) {
             throw new RuntimeException("Find Query Execution Error: " + e.getMessage());
+        } finally {
+            if (connection != null) {
+                connectionPool.releaseConnection(connection);
+            }
         }
 
         return null;
@@ -474,8 +495,8 @@ public class EntityManager {
                     if (relatedEntity != null) {
                         Field relatedIdField = getIdField(relatedEntity.getClass());
                         relatedIdField.setAccessible(true);
-
                         Object relatedIdValue = relatedIdField.get(relatedEntity);
+
                         setClause.append(manyToOne.column()).append(" = '").append(relatedIdValue).append("',");
                     }
                 }
@@ -504,13 +525,19 @@ public class EntityManager {
                     tableName,
                     setClause.substring(0, setClause.length() - 1),
                     idColumn);
-
-            try (Connection connection = connectionPool.getConnection();
-                 PreparedStatement statement = connection.prepareStatement(query)) {
+            Connection connection = null;
+            try {
+                connection = connectionPool.getConnection();
+                PreparedStatement statement = connection.prepareStatement(query);
                 statement.setObject(1, idValue);
                 statement.executeUpdate();
+
+                connectionPool.notifyObservers("Zaktualizowano encję w tabeli " + tableName);
+            } finally {
+                if (connection != null) {
+                    connectionPool.releaseConnection(connection);
+                }
             }
-            connectionPool.notifyObservers("Zaktualizowano encję w tabeli " + tableName);
         } catch (Exception e) {
             throw new RuntimeException("Błąd podczas aktualizacji encji: " + e.getMessage());
         }
@@ -549,12 +576,19 @@ public class EntityManager {
 
             String query = String.format("DELETE FROM %s WHERE %s = ?", tableName, idColumn);
 
-            try (Connection connection = connectionPool.getConnection();
-                 PreparedStatement statement = connection.prepareStatement(query)) {
+            Connection connection = null;
+            try {
+                connection = connectionPool.getConnection();
+                PreparedStatement statement = connection.prepareStatement(query);
                 statement.setObject(1, idValue);
                 statement.executeUpdate();
+
+                connectionPool.notifyObservers("Usunięto encję z tabeli " + tableName + " o id: " + idValue);
+            } finally {
+                if (connection != null) {
+                    connectionPool.releaseConnection(connection);
+                }
             }
-            connectionPool.notifyObservers("Usunięto encję z tabeli " + tableName + " o id: " + idValue);
         } catch (Exception e) {
             throw new RuntimeException("Błąd podczas usuwania encji: " + e.getMessage());
         }
@@ -573,8 +607,10 @@ public class EntityManager {
     public <T> List<T> executeQuery(String query, Class<T> clazz, Object... params) {
         List<T> results = new ArrayList<>();
 
-        try (Connection connection = connectionPool.getConnection();
-             PreparedStatement statement = connection.prepareStatement(query)) {
+        Connection connection = null;
+        try {
+            connection = connectionPool.getConnection();
+            PreparedStatement statement = connection.prepareStatement(query);
             for (int i = 0; i < params.length; i++) {
                 statement.setObject(i + 1, params[i]);
             }
@@ -609,7 +645,6 @@ public class EntityManager {
                         field.set(entity, found);
                     }
                     if (field.isAnnotationPresent(ManyToOne.class)) {
-                        // Obsługa relacji ManyToOne
                         ManyToOne manyToOne = field.getAnnotation(ManyToOne.class);
                         Object relatedEntity = findManyToOne(field.getType(), resultSet.getObject(manyToOne.column()));
                         field.set(entity, relatedEntity);
@@ -618,9 +653,12 @@ public class EntityManager {
 
                 results.add(entity);
             }
-
         } catch (Exception e) {
             throw new RuntimeException("Custom Query Execution Error: " + e.getMessage(), e);
+        } finally {
+            if (connection != null) {
+                connectionPool.releaseConnection(connection);
+            }
         }
 
         return results;
@@ -635,18 +673,21 @@ public class EntityManager {
      * @return liczba zmodyfikowanych wierszy
      */
     public int executeUpdate(String query, Object... params) {
-        try (Connection connection = connectionPool.getConnection();
-             PreparedStatement statement = connection.prepareStatement(query)) {
+        Connection connection = null;
+        try {
+            connection = connectionPool.getConnection();
+            PreparedStatement statement = connection.prepareStatement(query);
 
-            // Ustawianie parametrów do zapytania
             for (int i = 0; i < params.length; i++) {
                 statement.setObject(i + 1, params[i]);
             }
-
             return statement.executeUpdate();
-
         } catch (SQLException | InterruptedException e) {
             throw new RuntimeException("Custom Update Query Execution Error: " + e.getMessage(), e);
+        }finally {
+            if (connection != null) {
+                connectionPool.releaseConnection(connection);
+            }
         }
     }
 
