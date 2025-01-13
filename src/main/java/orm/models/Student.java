@@ -14,6 +14,7 @@ public class Student {
     private String name;
 
     @ManyToMany(
+            isMapped = false,
             joinTable = "students_projects",
             joinColumn = "student_id",
             inverseJoinColumn = "project_id"

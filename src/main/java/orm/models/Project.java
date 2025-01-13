@@ -15,6 +15,7 @@ public class Project {
     private String name;
 
     @ManyToMany(
+            isMapped = true,
             joinTable = "students_projects",
             joinColumn = "project_id",
             inverseJoinColumn = "student_id"

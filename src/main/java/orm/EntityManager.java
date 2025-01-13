@@ -134,23 +134,37 @@ public class EntityManager {
                 Object entityId = idField.get(entity);
 
                 for (Object relatedEntity : relatedEntities) {
-                    Field relatedIdField = getIdField(relatedEntity.getClass());
-                    relatedIdField.setAccessible(true);
-                    Object relatedId = relatedIdField.get(relatedEntity);
+                    for (Field f : relatedEntity.getClass().getDeclaredFields()) {
+                        f.setAccessible(true);
+                        if (f.isAnnotationPresent(ManyToMany.class)) {
+                            if(f.getAnnotation(ManyToMany.class).isMapped()){
 
-                    String query = String.format(
-                            "INSERT INTO %s (%s, %s) VALUES (?, ?) ON CONFLICT DO NOTHING",
-                            joinTable, joinColumn, inverseJoinColumn
-                    );
 
-                    try (Connection connection = connectionPool.getConnection();
-                         PreparedStatement statement = connection.prepareStatement(query)) {
-                        statement.setObject(1, entityId);
-                        statement.setObject(2, relatedId);
-                        statement.executeUpdate();
-                    } catch (SQLException | InterruptedException e) {
-                        throw new RuntimeException("Failed to save ManyToMany relationship: " + e.getMessage(), e);
+
+                                Field relatedIdField = getIdField(relatedEntity.getClass());
+                                relatedIdField.setAccessible(true);
+                                Object relatedId = relatedIdField.get(relatedEntity);
+            
+                                String query = String.format(
+                                        "INSERT INTO %s (%s, %s) VALUES (?, ?) ON CONFLICT DO NOTHING",
+                                        joinTable, joinColumn, inverseJoinColumn
+                                );
+            
+                                try (Connection connection = connectionPool.getConnection();
+                                     PreparedStatement statement = connection.prepareStatement(query)) {
+                                    statement.setObject(1, entityId);
+                                    statement.setObject(2, relatedId);
+                                    statement.executeUpdate();
+                                } catch (SQLException | InterruptedException e) {
+                                    throw new RuntimeException("Failed to save ManyToMany relationship: " + e.getMessage(), e);
+                                }
+
+
+                            }
+                        }
                     }
+
+
                 }
             }
         }
