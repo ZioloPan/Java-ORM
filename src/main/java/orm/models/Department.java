@@ -18,7 +18,7 @@ public class Department {
     @Column(name = "name")
     private String name;
 
-    @OneToMany(mappedBy = "department")
+    @OneToMany(mappedBy = "department_id")
     private List<Employee> employees = new ArrayList<>();
 
     public void addEmployee(Employee e) {

@@ -8,11 +8,7 @@ import java.sql.SQLException;
 public class MainTest {
     public static void main(String[] args) {
         try {
-            ConnectionPool connectionPool = ConnectionPool.getInstance();
-            EntityManager entityManager = new EntityManager(connectionPool);
-
-            LoggerObserver loggerObserver = new LoggerObserver();
-            connectionPool.addObserver(loggerObserver);
+            EntityManager entityManager = new EntityManager(new LoggerObserver());
 
             Department d1 = new Department();
             d1.setId(10);

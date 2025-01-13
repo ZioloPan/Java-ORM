@@ -1,16 +1,18 @@
 package orm;
 
+import com.sun.jdi.ClassType;
 import orm.annotations.*;
 import orm.logging.LoggerObserver;
 
+import java.lang.annotation.Annotation;
+import java.lang.reflect.AnnotatedType;
 import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Objects;
+import java.util.*;
 
 /**
  * Klasa EntityManager zarządzająca operacjami CRUD na encjach.
@@ -257,6 +259,22 @@ public class EntityManager {
                             field.set(entity, found);
                         }
                     }
+
+                    if(field.isAnnotationPresent(OneToMany.class)) {
+                        OneToMany oneToMany = field.getAnnotation(OneToMany.class);
+
+                        ParameterizedType stringListType = (ParameterizedType) field.getGenericType();
+                        Class<?> listClass = (Class<?>) stringListType.getActualTypeArguments()[0];
+
+                        var found = findOneToMany(listClass, id, oneToMany.mappedBy());
+                        field.set(entity, found);
+                    }
+
+                    if(field.isAnnotationPresent(ManyToOne.class)) {
+                        ManyToOne manyToOne = field.getAnnotation(ManyToOne.class);
+                        var found = findManyToOne(field.getType(), id, manyToOne.column());
+                        field.set(entity, found);
+                    }
                 }
                 return entity;
             }
@@ -268,7 +286,7 @@ public class EntityManager {
         return null;
     }
 
-    public <T> T findOneToOne(Class<T> clazz, Object id, String columnName) {
+    private  <T> T findOneToOne(Class<T> clazz, Object id, String columnName) {
         Table table = clazz.getAnnotation(Table.class);
         if (table == null) {
             throw new RuntimeException("Class " + clazz.getName() + " is not mapped in DB");
@@ -279,7 +297,7 @@ public class EntityManager {
         Object idValue = id;
 
         for (Field field : clazz.getDeclaredFields()) {
-            field.setAccessible(true); // Ustaw dostęp do pola
+            field.setAccessible(true);
             if (field.isAnnotationPresent(OneToOne.class)) {
                 OneToOne oneToOne = field.getAnnotation(OneToOne.class);
                 var idColumnTemp = oneToOne.column();
@@ -323,9 +341,115 @@ public class EntityManager {
         return null;
     }
 
+    private  <T> List<T> findOneToMany(Class<T> clazz, Object id, String columnName) {
+        Table table = clazz.getAnnotation(Table.class);
+        if (table == null) {
+            throw new RuntimeException("Class " + clazz.getName() + " is not mapped in DB");
+        }
+
+        String tableName = table.name();
+        String idColumn = null;
+
+        for (Field field : clazz.getDeclaredFields()) {
+            field.setAccessible(true);
+            if (field.isAnnotationPresent(ManyToOne.class)) {
+                ManyToOne manyToOne = field.getAnnotation(ManyToOne.class);
+                var idColumnTemp = manyToOne.column();
+                if(Objects.equals(columnName, idColumnTemp)){
+                    idColumn = idColumnTemp;
+                    break;
+                }
+            }
+        }
+
+        if (idColumn == null) {
+            throw new RuntimeException("Class " + clazz.getName() + " has no @Id field");
+        }
+
+        String query = String.format("SELECT * FROM %s WHERE %s = ?", tableName, idColumn);
+
+        try (Connection connection = connectionPool.getConnection();
+             PreparedStatement statement = connection.prepareStatement(query)) {
+
+            statement.setObject(1, id);
+            ResultSet resultSet = statement.executeQuery();
+
+            List<T> entities = new ArrayList<>();
+            if (resultSet.next()) {
+                T entity = clazz.getDeclaredConstructor().newInstance();
+                for (Field field : clazz.getDeclaredFields()) {
+                    field.setAccessible(true);
+
+                    if (field.isAnnotationPresent(Column.class)) {
+                        Column column = field.getAnnotation(Column.class);
+                        field.set(entity, resultSet.getObject(column.name()));
+                    }
+                }
+                entities.add(entity);
+                return entities;
+            }
 
 
+        } catch (Exception e) {
+            throw new RuntimeException("Find Query Execution Error: " + e.getMessage());
+        }
 
+        return null;
+    }
+
+
+    private  <T> T findManyToOne(Class<T> clazz, Object id, String columnName) {
+        Table table = clazz.getAnnotation(Table.class);
+        if (table == null) {
+            throw new RuntimeException("Class " + clazz.getName() + " is not mapped in DB");
+        }
+
+        String tableName = table.name();
+        String idColumn = null;
+
+        for (Field field : clazz.getDeclaredFields()) {
+            field.setAccessible(true);
+            if (field.isAnnotationPresent(Id.class)) {
+                Column column = field.getAnnotation(Column.class);
+                idColumn = (column != null) ? column.name() : field.getName();
+                break;
+            }
+        }
+
+        if (idColumn == null) {
+            throw new RuntimeException("Class " + clazz.getName() + " has no @Id field");
+        }
+
+        System.out.println(tableName);
+        String query = String.format("SELECT * FROM %s WHERE %s = ?", tableName, idColumn);
+
+        try (Connection connection = connectionPool.getConnection();
+             PreparedStatement statement = connection.prepareStatement(query)) {
+
+            statement.setObject(1, id);
+            ResultSet resultSet = statement.executeQuery();
+
+            if (resultSet.next()) {
+                T entity = clazz.getDeclaredConstructor().newInstance();
+
+                for (Field field : clazz.getDeclaredFields()) {
+                    field.setAccessible(true);
+
+                    if (field.isAnnotationPresent(Column.class)) {
+                        Column column = field.getAnnotation(Column.class);
+                        field.set(entity, resultSet.getObject(column.name()));
+                    }
+                }
+                return entity;
+            }
+
+
+        } catch (Exception e) {
+            throw new RuntimeException("Find Query Execution Error: " + e.getMessage());
+        }
+
+        return null;
+    }
 
 
 

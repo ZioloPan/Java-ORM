@@ -71,13 +71,6 @@ public class RelationsTest {
             e3.setName("Ala");
             e3.setId(6);
 
-//            Employee e1 = entityManager.find(Employee.class, 1);
-//            System.out.println(e1);
-//            Employee e2 = entityManager.find(Employee.class, 2);
-//            System.out.println(e2);
-//            Employee e3 = entityManager.find(Employee.class, 3);
-//            System.out.println(e3);
-
             d1.addEmployee(e1);
             d2.addEmployee(e2);
             d1.addEmployee(e3);
@@ -129,9 +122,16 @@ public class RelationsTest {
         try {
             EntityManager entityManager = new EntityManager(new LoggerObserver());
 
-            Employee e3 = entityManager.find(Employee.class, 2);
-            System.out.println("got:");
-            System.out.println(e3.getCar());
+            Employee e = entityManager.find(Employee.class, 2);
+            System.out.println("Got OneToOne:");
+            System.out.println(e.getCar());
+
+            Department d = entityManager.find(Department.class, 1);
+            System.out.println("\nGot OneToMany:");
+            System.out.println(d.getEmployees());
+
+            System.out.println("\nGot ManyToOne:");
+            System.out.println(e.getDepartment());
         } catch (Exception e) {
             e.printStackTrace();
         }
