@@ -2,8 +2,8 @@ package orm.models;
 
 import orm.annotations.*;
 
-import java.util.ArrayList;
-import java.util.List;
+import orm.iterator.CustomList;
+
 
 @Table(name = "projects")
 public class Project {
@@ -20,7 +20,7 @@ public class Project {
             joinColumn = "project_id",
             inverseJoinColumn = "student_id"
     )
-    private List<Student> students = new ArrayList<>();
+    private CustomList<Student> students = new CustomList<>();
 
     public int getId() {
         return id;
@@ -38,7 +38,7 @@ public class Project {
         this.name = name;
     }
 
-    public List<Student> getStudents() {
+    public CustomList<Student> getStudents() {
         return students;
     }
 

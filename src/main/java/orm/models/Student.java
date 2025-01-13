@@ -1,7 +1,7 @@
 package orm.models;
 
 import orm.annotations.*;
-import java.util.ArrayList;
+import orm.iterator.CustomList;
 
 @Table(name = "students")
 public class Student {
@@ -19,7 +19,7 @@ public class Student {
             joinColumn = "student_id",
             inverseJoinColumn = "project_id"
     )
-    private ArrayList<Project> projects = new ArrayList<>();
+    private CustomList<Project> projects = new CustomList<>();
 
     public void addProjects(Project p) {
         projects.add(p);
@@ -42,11 +42,11 @@ public class Student {
         this.name = name;
     }
 
-    public ArrayList<Project> getProjects() {
+    public CustomList<Project> getProjects() {
         return projects;
     }
 
-    public void setProjects(ArrayList<Project> projects) {
+    public void setProjects(CustomList<Project> projects) {
         this.projects = projects;
     }
 

@@ -5,8 +5,8 @@ import orm.annotations.Id;
 import orm.annotations.OneToMany;
 import orm.annotations.Table;
 
-import java.util.ArrayList;
-import java.util.List;
+import orm.iterator.CustomList;
+
 
 @Table(name = "departments")
 public class Department {
@@ -19,7 +19,7 @@ public class Department {
     private String name;
 
     @OneToMany(mappedBy = "department_id")
-    private List<Employee> employees = new ArrayList<>();
+    private CustomList<Employee> employees = new CustomList<>();
 
     public void addEmployee(Employee e) {
         employees.add(e);
@@ -42,11 +42,11 @@ public class Department {
         this.name = name;
     }
 
-    public List<Employee> getEmployees() {
+    public CustomList<Employee> getEmployees() {
         return employees;
     }
 
-    public void setEmployees(List<Employee> employees) {
+    public void setEmployees(CustomList<Employee> employees) {
         this.employees = employees;
     }
 

@@ -2,6 +2,7 @@ package orm;
 
 import orm.annotations.*;
 import orm.logging.LoggerObserver;
+import orm.iterator.CustomList;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
@@ -355,7 +356,7 @@ public class EntityManager {
         return null;
     }
 
-    private  <T> List<T> findOneToMany(Class<T> clazz, Object id, String columnName) {
+    private  <T> CustomList<T> findOneToMany(Class<T> clazz, Object id, String columnName) {
         Table table = clazz.getAnnotation(Table.class);
         if (table == null) {
             throw new RuntimeException("Class " + clazz.getName() + " is not mapped in DB");
@@ -390,7 +391,7 @@ public class EntityManager {
             statement.setObject(1, id);
             ResultSet resultSet = statement.executeQuery();
 
-            List<T> entities = new ArrayList<>();
+            CustomList<T> entities = new CustomList<>();
             if (resultSet.next()) {
                 T entity = clazz.getDeclaredConstructor().newInstance();
                 for (Field field : clazz.getDeclaredFields()) {
@@ -618,8 +619,8 @@ public class EntityManager {
      * @param <T> typ encji
      * @return lista obiektów encji lub pusta lista, jeśli brak wyników
      */
-    public <T> List<T> executeQuery(String query, Class<T> clazz, Object... params) {
-        List<T> results = new ArrayList<>();
+    public <T> CustomList<T> executeQuery(String query, Class<T> clazz, Object... params) {
+        CustomList<T> results = new CustomList<>();
 
         Connection connection = null;
         try {

@@ -1,12 +1,11 @@
 package orm;
 
 import orm.logging.Observer;
+import orm.iterator.CustomList;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
@@ -14,7 +13,7 @@ public class ConnectionPool {
 
     private static ConnectionPool instance;
     private final BlockingQueue<Connection> connections;
-    private final List<Observer> observers = new ArrayList<>();
+    private final CustomList<Observer> observers = new CustomList<>();
 
 
     private ConnectionPool() throws SQLException {
