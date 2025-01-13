@@ -1,11 +1,8 @@
 package orm;
 
-import com.sun.jdi.ClassType;
 import orm.annotations.*;
 import orm.logging.LoggerObserver;
 
-import java.lang.annotation.Annotation;
-import java.lang.reflect.AnnotatedType;
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.sql.Connection;
@@ -57,7 +54,6 @@ public class EntityManager {
             String valuesString = values.substring(0, values.length() - 1);
 
             String query = String.format("INSERT INTO %s (%s) VALUES (%s)", tableName, columnsString, valuesString);
-            System.out.println(query);
 
             executeInsertQuery(query, clazz, entity, tableName);
 
@@ -260,7 +256,7 @@ public class EntityManager {
 
                     if(field.isAnnotationPresent(ManyToOne.class)) {
                         ManyToOne manyToOne = field.getAnnotation(ManyToOne.class);
-                        var found = findManyToOne(field.getType(), id, manyToOne.column());
+                        var found = findManyToOne(field.getType(), id);
                         field.set(entity, found);
                     }
                 }
@@ -386,7 +382,7 @@ public class EntityManager {
     }
 
 
-    private  <T> T findManyToOne(Class<T> clazz, Object id, String columnName) {
+    private  <T> T findManyToOne(Class<T> clazz, Object id) {
         Table table = clazz.getAnnotation(Table.class);
         if (table == null) {
             throw new RuntimeException("Class " + clazz.getName() + " is not mapped in DB");
@@ -563,4 +559,96 @@ public class EntityManager {
             throw new RuntimeException("Błąd podczas usuwania encji: " + e.getMessage());
         }
     }
+
+
+    /**
+     * Wykonuje customowe zapytanie SELECT i mapuje wyniki na encje.
+     *
+     * @param query zapytanie SQL do wykonania
+     * @param clazz klasa encji, na którą ma być mapowany wynik
+     * @param params opcjonalne parametry zapytania
+     * @param <T> typ encji
+     * @return lista obiektów encji lub pusta lista, jeśli brak wyników
+     */
+    public <T> List<T> executeQuery(String query, Class<T> clazz, Object... params) {
+        List<T> results = new ArrayList<>();
+
+        try (Connection connection = connectionPool.getConnection();
+             PreparedStatement statement = connection.prepareStatement(query)) {
+            for (int i = 0; i < params.length; i++) {
+                statement.setObject(i + 1, params[i]);
+            }
+            System.out.println(statement);
+            ResultSet resultSet = statement.executeQuery();
+
+
+            while (resultSet.next()) {
+                T entity = clazz.getDeclaredConstructor().newInstance();
+                Object idValue = null;
+                for (Field field : clazz.getDeclaredFields()) {
+                    field.setAccessible(true);
+
+                    if (field.isAnnotationPresent(Id.class)) {
+                        Column column = field.getAnnotation(Column.class);
+                        idValue = resultSet.getObject(column.name());
+                    }
+                    if (idValue == null) {
+                        throw new RuntimeException("Class " + clazz.getName() + " has no @Id field");
+                    }
+
+                    if (field.isAnnotationPresent(Column.class)) {
+                        Column column = field.getAnnotation(Column.class);
+                        field.set(entity, resultSet.getObject(column.name()));
+                        System.out.println(resultSet.getObject(column.name()));
+                    }
+
+                    if (field.isAnnotationPresent(OneToOne.class)) {
+                        OneToOne oneToOne = field.getAnnotation(OneToOne.class);
+                        var found = findOneToOne(field.getType(), idValue, oneToOne.column());
+                        System.out.println(idValue);
+                        field.set(entity, found);
+                    }
+                    if (field.isAnnotationPresent(ManyToOne.class)) {
+                        // Obsługa relacji ManyToOne
+                        ManyToOne manyToOne = field.getAnnotation(ManyToOne.class);
+                        Object relatedEntity = findManyToOne(field.getType(), resultSet.getObject(manyToOne.column()));
+                        field.set(entity, relatedEntity);
+                    }
+                }
+
+                results.add(entity);
+            }
+
+        } catch (Exception e) {
+            throw new RuntimeException("Custom Query Execution Error: " + e.getMessage(), e);
+        }
+
+        return results;
+    }
+
+
+    /**
+     * Wykonuje customowe zapytanie modyfikujące dane (INSERT, UPDATE, DELETE).
+     *
+     * @param query zapytanie SQL do wykonania
+     * @param params opcjonalne parametry zapytania
+     * @return liczba zmodyfikowanych wierszy
+     */
+    public int executeUpdate(String query, Object... params) {
+        try (Connection connection = connectionPool.getConnection();
+             PreparedStatement statement = connection.prepareStatement(query)) {
+
+            // Ustawianie parametrów do zapytania
+            for (int i = 0; i < params.length; i++) {
+                statement.setObject(i + 1, params[i]);
+            }
+
+            return statement.executeUpdate();
+
+        } catch (SQLException | InterruptedException e) {
+            throw new RuntimeException("Custom Update Query Execution Error: " + e.getMessage(), e);
+        }
+    }
+
+
 }

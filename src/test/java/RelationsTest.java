@@ -5,6 +5,8 @@ import orm.models.Car;
 import orm.models.Department;
 import orm.models.Employee;
 
+import java.util.List;
+
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class RelationsTest {
 
@@ -132,6 +134,27 @@ public class RelationsTest {
 
             System.out.println("\nGot ManyToOne:");
             System.out.println(e.getDepartment());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Test
+    @Order(6)
+    void customQuery() {
+        try {
+            EntityManager entityManager = new EntityManager(new LoggerObserver());
+
+            List<Employee> entities = entityManager.executeQuery(
+                    "SELECT * FROM employees WHERE name = ? AND id = ?",
+                    Employee.class,
+                    "Ala", 6
+            );
+
+            for (Employee entity : entities) {
+                System.out.println(entity);
+            }
+
         } catch (Exception e) {
             e.printStackTrace();
         }
