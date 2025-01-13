@@ -679,10 +679,11 @@ public class EntityManager {
             for (int i = 0; i < params.length; i++) {
                 statement.setObject(i + 1, params[i]);
             }
+            connectionPool.notifyObservers("Zmieniono dane w bazie zapytaniem: " + statement);
             return statement.executeUpdate();
         } catch (SQLException | InterruptedException e) {
             throw new RuntimeException("Custom Update Query Execution Error: " + e.getMessage(), e);
-        }finally {
+        } finally {
             if (connection != null) {
                 connectionPool.releaseConnection(connection);
             }

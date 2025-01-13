@@ -164,10 +164,54 @@ public class RelationsTest {
                     Employee.class,
                     "Ala", 1
             );
-
             for (Employee entity : entities) {
                 System.out.println(entity);
             }
+
+            List<Employee> entities1 = entityManager.executeQuery(
+                "SELECT * FROM employees WHERE department_id = ?",
+                Employee.class,
+                 1
+            );
+            for (Employee entity : entities1) {
+                System.out.println(entity);
+            }
+
+            List<Employee> entities2 = entityManager.executeQuery(
+                "SELECT e.* FROM employees e JOIN cars c on e.id=c.employee_id WHERE c.model = ?",
+                Employee.class,
+                 "audi"
+            );
+            for (Employee entity : entities2) {
+                System.out.println(entity);
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Test
+    @Order(7)
+    void customExecuteQuery() {
+        try {
+            EntityManager entityManager = new EntityManager(new LoggerObserver());
+
+            int result = entityManager.executeUpdate(
+                    "INSERT INTO cars (id, model) VALUES (?, ?)",
+                    3, "toyota"
+            );
+            Assertions.assertEquals(result, 1);
+
+            int result1 = entityManager.executeUpdate(
+                "DELETE FROM cars WHERE id = ?", 
+                3);
+            Assertions.assertEquals(result1, 1);
+
+            int result2 = entityManager.executeUpdate(
+                "UPDATE cars set model = ? WHERE employee_id = ?", 
+                "toyota", 3);
+            Assertions.assertEquals(result2, 1);
 
         } catch (Exception e) {
             e.printStackTrace();

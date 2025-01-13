@@ -45,6 +45,6 @@ public class Car {
 
     @Override
     public String toString() {
-        return "Car(id: " + id + ", model: " + model + ")";
+        return "Car(id: " + id + ", model: " + model + ", employee: " + (employee != null ? employee.getName() : null) + ")";
     }
 }
