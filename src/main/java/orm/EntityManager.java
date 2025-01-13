@@ -635,13 +635,11 @@ public class EntityManager {
                     if (field.isAnnotationPresent(Column.class)) {
                         Column column = field.getAnnotation(Column.class);
                         field.set(entity, resultSet.getObject(column.name()));
-                        System.out.println(resultSet.getObject(column.name()));
                     }
 
                     if (field.isAnnotationPresent(OneToOne.class)) {
                         OneToOne oneToOne = field.getAnnotation(OneToOne.class);
                         var found = findOneToOne(field.getType(), idValue, oneToOne.column());
-                        System.out.println(idValue);
                         field.set(entity, found);
                     }
                     if (field.isAnnotationPresent(ManyToOne.class)) {
