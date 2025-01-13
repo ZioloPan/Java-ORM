@@ -46,7 +46,6 @@ public class EntityManager {
         try {
             for (Field field : clazz.getDeclaredFields()) {
                 field.setAccessible(true);
-
                 handleColumnField(field, entity, columns, values);
                 handleOneToOneField(field, entity, columns, values);
                 handleManyToOneField(field, entity, columns, values);
@@ -58,6 +57,7 @@ public class EntityManager {
             String valuesString = values.substring(0, values.length() - 1);
 
             String query = String.format("INSERT INTO %s (%s) VALUES (%s)", tableName, columnsString, valuesString);
+            System.out.println(query);
 
             executeInsertQuery(query, clazz, entity, tableName);
 
@@ -124,56 +124,44 @@ public class EntityManager {
         }
     }
 
-    private void handleManyToManyField(Field field, Object entity) throws IllegalAccessException, InterruptedException {
+    private void handleManyToManyField(Field field, Object entity) throws IllegalAccessException {
         if (field.isAnnotationPresent(ManyToMany.class)) {
             ManyToMany manyToMany = field.getAnnotation(ManyToMany.class);
             Collection<?> relatedEntities = (Collection<?>) field.get(entity);
 
             if (relatedEntities != null && !relatedEntities.isEmpty()) {
-                for (Object relatedEntity : relatedEntities) {
+                String joinTable = manyToMany.joinTable();
+                String joinColumn = manyToMany.joinColumn();
+                String inverseJoinColumn = manyToMany.inverseJoinColumn();
 
+                Field idField = getIdField(entity.getClass());
+                idField.setAccessible(true);
+                Object entityId = idField.get(entity);
+
+                for (Object relatedEntity : relatedEntities) {
                     Field relatedIdField = getIdField(relatedEntity.getClass());
                     relatedIdField.setAccessible(true);
+                    Object relatedId = relatedIdField.get(relatedEntity);
 
-                    Object relatedIdValue = relatedIdField.get(relatedEntity);
-
-                        if (relatedIdValue == null) {
-                            save(relatedEntity);
-                            relatedIdValue = relatedIdField.get(relatedEntity);
-                        }
-                    // Insert into the join table as needed
-                    String joinTable = manyToMany.joinTable();
-                    String joinColumn = manyToMany.joinColumn();
-                    String inverseJoinColumn = manyToMany.inverseJoinColumn();
-
-
-                    System.out.println(joinTable);
-                    System.out.println(joinColumn);
-                    System.out.println(inverseJoinColumn);
-                    System.out.println(relatedIdValue);
-                    Field xd = getIdField(entity.getClass());
-                    xd.setAccessible(true);
-                    Object xdId = xd.get(entity);
-                    System.out.println(xd);
-                    String joinQuery = String.format(
-                            "INSERT INTO %s (%s, %s) VALUES ('%s', '%s')",
-                            joinTable,
-                            joinColumn,
-                            inverseJoinColumn,
-                            xdId,
-                            relatedIdValue
+                    String query = String.format(
+                            "INSERT INTO %s (%s, %s) VALUES (?, ?) ON CONFLICT DO NOTHING",
+                            joinTable, joinColumn, inverseJoinColumn
                     );
 
                     try (Connection connection = connectionPool.getConnection();
-                         PreparedStatement statement = connection.prepareStatement(joinQuery)) {
+                         PreparedStatement statement = connection.prepareStatement(query)) {
+                        statement.setObject(1, entityId);
+                        statement.setObject(2, relatedId);
                         statement.executeUpdate();
-                    } catch (SQLException e) {
-                        throw new RuntimeException(e);
+                    } catch (SQLException | InterruptedException e) {
+                        throw new RuntimeException("Failed to save ManyToMany relationship: " + e.getMessage(), e);
                     }
                 }
             }
         }
     }
+
+
 
     private Field getIdField(Class<?> clazz) {
         return Arrays.stream(clazz.getDeclaredFields())
