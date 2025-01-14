@@ -5,7 +5,7 @@ import orm.models.Car;
 import orm.models.Department;
 import orm.models.Employee;
 
-import java.util.List;
+import orm.iterator.CustomList;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class RelationsTest {
@@ -159,31 +159,31 @@ public class RelationsTest {
         try {
             EntityManager entityManager = new EntityManager(new LoggerObserver());
 
-            List<Employee> entities = entityManager.executeQuery(
+            CustomList<Employee> entities = entityManager.executeQuery(
                     "SELECT * FROM employees WHERE name = ? AND department_id = ?",
                     Employee.class,
                     "Ala", 1
             );
-            for (Employee entity : entities) {
-                System.out.println(entity);
+            for (int i = 0; i < entities.size(); i++) {
+                System.out.println(entities.get(i));
             }
 
-            List<Employee> entities1 = entityManager.executeQuery(
+            CustomList<Employee> entities1 = entityManager.executeQuery(
                 "SELECT * FROM employees WHERE department_id = ?",
                 Employee.class,
                  1
             );
-            for (Employee entity : entities1) {
-                System.out.println(entity);
+            for (int i = 0; i < entities1.size(); i++) {
+                System.out.println(entities1.get(i));
             }
 
-            List<Employee> entities2 = entityManager.executeQuery(
+            CustomList<Employee> entities2 = entityManager.executeQuery(
                 "SELECT e.* FROM employees e JOIN cars c on e.id=c.employee_id WHERE c.model = ?",
                 Employee.class,
                  "audi"
             );
-            for (Employee entity : entities2) {
-                System.out.println(entity);
+            for (int i = 0; i < entities2.size(); i++) {
+                System.out.println(entities2.get(i));
             }
 
         } catch (Exception e) {
